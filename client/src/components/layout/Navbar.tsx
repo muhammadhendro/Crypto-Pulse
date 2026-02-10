@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, LineChart, Newspaper, Settings, Search, Menu, X, Activity } from "lucide-react";
+import { LayoutDashboard, LineChart, Newspaper, Settings, Search, Menu, X, Activity, ScanLine, History, Book } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,11 @@ export default function Navbar() {
   const navItems = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     { label: "Exchange", href: "/exchange", icon: LineChart },
+    { label: "Scanner", href: "/scanner", icon: ScanLine },
     { label: "Analysis", href: "/analysis", icon: Activity },
-    { label: "News & Sentiment", href: "/news", icon: Newspaper },
+    { label: "Backtest", href: "/backtest", icon: History },
+    { label: "Journal", href: "/journal", icon: Book },
+    { label: "News", href: "/news", icon: Newspaper },
     { label: "Settings", href: "/settings", icon: Settings },
   ];
 

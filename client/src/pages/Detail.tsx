@@ -9,29 +9,29 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { ArrowUp, ArrowDown, Info, Activity, Newspaper, BookOpen, BarChart2 } from "lucide-react";
+import { ArrowUp, ArrowDown, Info, Activity, Newspaper, BookOpen, BarChart2, LineChart, Database } from "lucide-react";
 import { format } from "date-fns";
 import { TechnicalPanel } from "@/components/analysis/TechnicalPanel";
 import { FundamentalPanel } from "@/components/analysis/FundamentalPanel";
+import { DerivativesPanel } from "@/components/analysis/DerivativesPanel";
+import { OnChainPanel } from "@/components/analysis/OnChainPanel";
+import { AdvancedRealTimeChart } from "react-ts-tradingview-widgets";
 
 export default function Detail() {
   const [match, params] = useRoute("/coin/:id");
   const id = params?.id || "bitcoin";
-  const [timeRange, setTimeRange] = useState("7"); // 1, 7, 30, 365
+  const [timeRange, setTimeRange] = useState("7"); 
 
-  // 1. Get Coin Detail (Fundamental + Basic)
   const { data: coin, isLoading: coinLoading } = useQuery({ 
     queryKey: ["coinDetail", id], 
     queryFn: () => getCoinDetails(id) 
   });
 
-  // 2. Get Chart History (for main chart)
   const { data: history, isLoading: historyLoading } = useQuery({
     queryKey: ["history", id, timeRange],
     queryFn: () => getCoinHistory(id, timeRange),
   });
 
-  // 3. Get OHLCV (for Technical Analysis) - defaulting to 30 days for robust analysis
   const { data: ohlcv, isLoading: ohlcvLoading } = useQuery({
     queryKey: ["ohlcv", id],
     queryFn: () => getCoinOHLCV(id, "30")
@@ -78,12 +78,14 @@ export default function Detail() {
         </div>
 
         {/* Content Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[400px]">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="technical">Technical</TabsTrigger>
-            <TabsTrigger value="fundamental">Fundamental</TabsTrigger>
-            <TabsTrigger value="news">News</TabsTrigger>
+        <Tabs defaultValue="chart" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6 lg:w-[600px] h-auto flex-wrap">
+             <TabsTrigger value="overview">Overview</TabsTrigger>
+             <TabsTrigger value="chart">Chart</TabsTrigger>
+             <TabsTrigger value="technical">Technical</TabsTrigger>
+             <TabsTrigger value="derivatives">Derivs</TabsTrigger>
+             <TabsTrigger value="onchain">On-Chain</TabsTrigger>
+             <TabsTrigger value="fundamental">Fundam.</TabsTrigger>
           </TabsList>
 
           {/* OVERVIEW TAB */}
@@ -184,12 +186,26 @@ export default function Detail() {
                     <p className="text-sm text-muted-foreground line-clamp-4">
                       {coin.description?.en || "No description available."}
                     </p>
-                    <Button variant="link" className="px-0 h-auto text-primary mt-2" onClick={() => (document.querySelector('[value="fundamental"]') as HTMLElement)?.click()}>
-                      Read more in Fundamentals
-                    </Button>
                  </div>
               </div>
             </div>
+          </TabsContent>
+
+          {/* TRADINGVIEW CHART TAB */}
+          <TabsContent value="chart">
+             <div className="h-[600px] w-full bg-card rounded-lg border overflow-hidden">
+                <AdvancedRealTimeChart 
+                  symbol={`${coin.symbol.toUpperCase()}USDT`} 
+                  theme="dark" 
+                  autosize
+                  hide_side_toolbar={false}
+                  allow_symbol_change={true}
+                  interval="60"
+                />
+             </div>
+             <div className="mt-2 text-xs text-muted-foreground text-center">
+               Chart powered by TradingView. Use the toolbar for indicators (RSI, MACD) and drawing tools.
+             </div>
           </TabsContent>
 
           {/* TECHNICAL TAB */}
@@ -205,6 +221,28 @@ export default function Detail() {
             {ohlcv ? <TechnicalPanel ohlcv={ohlcv} /> : <Skeleton className="h-96 w-full" />}
           </TabsContent>
 
+          {/* DERIVATIVES TAB */}
+          <TabsContent value="derivatives">
+            <div className="mb-4">
+               <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <LineChart className="h-6 w-6 text-primary" /> Derivatives Data
+              </h2>
+              <p className="text-muted-foreground">Open Interest, Funding Rates, and Liquidations</p>
+            </div>
+            <DerivativesPanel coinSymbol={coin.symbol} />
+          </TabsContent>
+
+          {/* ON-CHAIN TAB */}
+          <TabsContent value="onchain">
+             <div className="mb-4">
+               <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <Database className="h-6 w-6 text-primary" /> On-Chain Analytics
+              </h2>
+              <p className="text-muted-foreground">Network activity, HODL waves, and Exchange flows</p>
+            </div>
+            <OnChainPanel coinSymbol={coin.symbol} />
+          </TabsContent>
+
           {/* FUNDAMENTAL TAB */}
           <TabsContent value="fundamental">
              <div className="mb-4">
@@ -213,15 +251,6 @@ export default function Detail() {
               </h2>
             </div>
             <FundamentalPanel coin={coin} />
-          </TabsContent>
-          
-           {/* NEWS TAB (Placeholder) */}
-          <TabsContent value="news">
-             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground border rounded-lg border-dashed">
-               <Newspaper className="h-12 w-12 mb-4 opacity-50" />
-               <h3 className="text-lg font-medium">News Feed</h3>
-               <p>Latest news about {coin.name} will appear here.</p>
-             </div>
           </TabsContent>
         </Tabs>
 

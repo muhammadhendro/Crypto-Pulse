@@ -10,6 +10,9 @@ import News from "@/pages/News";
 import Settings from "@/pages/Settings";
 import Detail from "@/pages/Detail";
 import Analysis from "@/pages/Analysis";
+import Scanner from "@/pages/Scanner";
+import Backtest from "@/pages/Backtest";
+import Journal from "@/pages/Journal";
 
 function Router() {
   return (
@@ -17,6 +20,9 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/exchange" component={Exchange} />
       <Route path="/analysis" component={Analysis} />
+      <Route path="/scanner" component={Scanner} />
+      <Route path="/backtest" component={Backtest} />
+      <Route path="/journal" component={Journal} />
       <Route path="/news" component={News} />
       <Route path="/settings" component={Settings} />
       <Route path="/coin/:id" component={Detail} />
