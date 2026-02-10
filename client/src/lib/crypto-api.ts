@@ -31,6 +31,43 @@ export interface Coin {
   sparkline_in_7d?: { price: number[] };
 }
 
+export interface CoinDetail extends Coin {
+  description: { en: string };
+  categories: string[];
+  links: {
+    homepage: string[];
+    blockchain_site: string[];
+    official_forum_url: string[];
+    chat_url: string[];
+    announcement_url: string[];
+    twitter_screen_name: string;
+    facebook_username: string;
+    subreddit_url: string;
+    repos_url: {
+      github: string[];
+    };
+  };
+  community_data: {
+    twitter_followers: number;
+    reddit_subscribers: number;
+    reddit_average_posts_48h: number;
+    reddit_average_comments_48h: number;
+  };
+  developer_data: {
+    forks: number;
+    stars: number;
+    subscribers: number;
+    total_issues: number;
+    closed_issues: number;
+    pull_requests_merged: number;
+    pull_request_contributors: number;
+  };
+  genesis_date: string;
+  sentiment_votes_up_percentage: number;
+  sentiment_votes_down_percentage: number;
+  market_cap_fdv_ratio: number;
+}
+
 export interface GlobalData {
   active_cryptocurrencies: number;
   upcoming_icos: number;
@@ -154,8 +191,6 @@ const MOCK_GLOBAL: GlobalData = {
 
 // --- API CLIENT ---
 
-// We will default to mock data to ensure the prototype "just works" without hitting API limits or CORS issues immediately.
-// In a production app, we would configure a proper proxy server.
 const USE_MOCK = true; 
 
 export const getTopCoins = async (): Promise<Coin[]> => {
@@ -183,6 +218,65 @@ export const getTopCoins = async (): Promise<Coin[]> => {
   }
 };
 
+export const getCoinDetails = async (id: string): Promise<CoinDetail | null> => {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 500));
+    const baseCoin = MOCK_COINS.find(c => c.id === id) || MOCK_COINS[0];
+    return {
+      ...baseCoin,
+      description: { en: "Bitcoin is a decentralized digital currency, without a central bank or single administrator, that can be sent from user to user on the peer-to-peer bitcoin network without the need for intermediaries." },
+      categories: ["Cryptocurrency", "Layer 1"],
+      links: {
+        homepage: ["https://bitcoin.org"],
+        blockchain_site: ["https://mempool.space"],
+        official_forum_url: ["https://bitcointalk.org"],
+        chat_url: [],
+        announcement_url: [],
+        twitter_screen_name: "bitcoin",
+        facebook_username: "",
+        subreddit_url: "https://reddit.com/r/bitcoin",
+        repos_url: { github: ["https://github.com/bitcoin/bitcoin"] }
+      },
+      community_data: {
+        twitter_followers: 6500000,
+        reddit_subscribers: 5800000,
+        reddit_average_posts_48h: 250,
+        reddit_average_comments_48h: 1200
+      },
+      developer_data: {
+        forks: 35000,
+        stars: 72000,
+        subscribers: 4000,
+        total_issues: 8000,
+        closed_issues: 7500,
+        pull_requests_merged: 15000,
+        pull_request_contributors: 950
+      },
+      genesis_date: "2009-01-03",
+      sentiment_votes_up_percentage: 75,
+      sentiment_votes_down_percentage: 25,
+      market_cap_fdv_ratio: 0.95
+    };
+  }
+
+  try {
+    const { data } = await axios.get(`https://api.coingecko.com/api/v3/coins/${id}`, {
+      params: {
+        localization: false,
+        tickers: false,
+        market_data: true,
+        community_data: true,
+        developer_data: true,
+        sparkline: false
+      }
+    });
+    return data;
+  } catch (error) {
+    console.error("Details API Error", error);
+    return null;
+  }
+};
+
 export const getGlobalData = async (): Promise<GlobalData> => {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 500));
@@ -194,6 +288,37 @@ export const getGlobalData = async (): Promise<GlobalData> => {
     return data.data;
   } catch (error) {
     return MOCK_GLOBAL;
+  }
+};
+
+// Returns OHLCV data for technical analysis
+// Candle format: [time, open, high, low, close]
+export const getCoinOHLCV = async (id: string, days: string = "30"): Promise<number[][]> => {
+  if (USE_MOCK) {
+     const count = parseInt(days) === 1 ? 24 : parseInt(days); // if 1 day, return hourly (24 points)
+     const now = Date.now();
+     const interval = parseInt(days) === 1 ? 3600000 : 86400000;
+     
+     const basePrice = id === "bitcoin" ? 64000 : id === "ethereum" ? 3400 : 140;
+     
+     return Array.from({ length: 100 }).map((_, i) => { // generate 100 candles
+       const time = now - (100 - 1 - i) * interval;
+       const open = basePrice + (Math.random() - 0.5) * basePrice * 0.05;
+       const close = open + (Math.random() - 0.5) * basePrice * 0.02;
+       const high = Math.max(open, close) + Math.random() * basePrice * 0.01;
+       const low = Math.min(open, close) - Math.random() * basePrice * 0.01;
+       return [time, open, high, low, close];
+     });
+  }
+
+  try {
+    const { data } = await axios.get(`https://api.coingecko.com/api/v3/coins/${id}/ohlc`, {
+      params: { vs_currency: 'usd', days }
+    });
+    return data;
+  } catch (error) {
+    console.error("OHLC API Error", error);
+    return [];
   }
 };
 

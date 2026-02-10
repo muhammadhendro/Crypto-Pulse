@@ -71,6 +71,16 @@ export default function Settings() {
 
             <div className="flex items-center justify-between space-x-2">
               <div className="space-y-1">
+                <Label htmlFor="indicators">Show Technical Indicators</Label>
+                <p className="text-sm text-muted-foreground">
+                  Enable advanced charts (RSI, MACD, BB) in Detail view.
+                </p>
+              </div>
+              <Switch id="indicators" defaultChecked />
+            </div>
+
+             <div className="flex items-center justify-between space-x-2">
+              <div className="space-y-1">
                 <Label htmlFor="notifications">Browser Notifications</Label>
                 <p className="text-sm text-muted-foreground">
                   Get alerted when watchlist items hit price targets.

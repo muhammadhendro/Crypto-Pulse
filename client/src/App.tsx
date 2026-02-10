@@ -9,12 +9,14 @@ import Exchange from "@/pages/Exchange";
 import News from "@/pages/News";
 import Settings from "@/pages/Settings";
 import Detail from "@/pages/Detail";
+import Analysis from "@/pages/Analysis";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/exchange" component={Exchange} />
+      <Route path="/analysis" component={Analysis} />
       <Route path="/news" component={News} />
       <Route path="/settings" component={Settings} />
       <Route path="/coin/:id" component={Detail} />
