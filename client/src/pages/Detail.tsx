@@ -3,18 +3,20 @@ import { useRoute } from "wouter";
 import Navbar from "@/components/layout/Navbar";
 import { getCoinHistory, getCoinDetails, getCoinOHLCV } from "@/lib/crypto-api"; 
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { ArrowUp, ArrowDown, Info, Activity, Newspaper, BookOpen, BarChart2, LineChart, Database } from "lucide-react";
+import { ArrowUp, ArrowDown, BookOpen, BarChart2, LineChart, Database, Activity, Layers, Code } from "lucide-react";
 import { format } from "date-fns";
 import { TechnicalPanel } from "@/components/analysis/TechnicalPanel";
 import { FundamentalPanel } from "@/components/analysis/FundamentalPanel";
 import { DerivativesPanel } from "@/components/analysis/DerivativesPanel";
 import { OnChainPanel } from "@/components/analysis/OnChainPanel";
+import { SentimentPanel } from "@/components/analysis/SentimentPanel";
+import { MultiExchangePanel } from "@/components/analysis/MultiExchangePanel";
+import { QuantPanel } from "@/components/analysis/QuantPanel";
 import { AdvancedRealTimeChart } from "react-ts-tradingview-widgets";
 
 export default function Detail() {
@@ -79,12 +81,15 @@ export default function Detail() {
 
         {/* Content Tabs */}
         <Tabs defaultValue="chart" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-[600px] h-auto flex-wrap">
+          <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start overflow-x-auto pb-2">
              <TabsTrigger value="overview">Overview</TabsTrigger>
              <TabsTrigger value="chart">Chart</TabsTrigger>
              <TabsTrigger value="technical">Technical</TabsTrigger>
              <TabsTrigger value="derivatives">Derivs</TabsTrigger>
              <TabsTrigger value="onchain">On-Chain</TabsTrigger>
+             <TabsTrigger value="exchanges">Exchanges</TabsTrigger>
+             <TabsTrigger value="sentiment">Sentiment</TabsTrigger>
+             <TabsTrigger value="quant">Quant</TabsTrigger>
              <TabsTrigger value="fundamental">Fundam.</TabsTrigger>
           </TabsList>
 
@@ -204,7 +209,7 @@ export default function Detail() {
                 />
              </div>
              <div className="mt-2 text-xs text-muted-foreground text-center">
-               Chart powered by TradingView. Use the toolbar for indicators (RSI, MACD) and drawing tools.
+               Chart powered by TradingView. Includes Pine Script Strategy Tester capability (read-only).
              </div>
           </TabsContent>
 
@@ -241,6 +246,39 @@ export default function Detail() {
               <p className="text-muted-foreground">Network activity, HODL waves, and Exchange flows</p>
             </div>
             <OnChainPanel coinSymbol={coin.symbol} />
+          </TabsContent>
+          
+           {/* EXCHANGES TAB */}
+          <TabsContent value="exchanges">
+             <div className="mb-4">
+               <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <Layers className="h-6 w-6 text-primary" /> Multi-Exchange
+              </h2>
+              <p className="text-muted-foreground">Cross-exchange arbitrage opportunities and price comparison</p>
+            </div>
+            <MultiExchangePanel coinSymbol={coin.symbol} />
+          </TabsContent>
+          
+           {/* SENTIMENT TAB */}
+          <TabsContent value="sentiment">
+             <div className="mb-4">
+               <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <Activity className="h-6 w-6 text-primary" /> Sentiment Analysis
+              </h2>
+              <p className="text-muted-foreground">Social volume, Fear & Greed Index, and News Sentiment</p>
+            </div>
+            <SentimentPanel coinSymbol={coin.symbol} />
+          </TabsContent>
+          
+           {/* QUANT TAB */}
+          <TabsContent value="quant">
+             <div className="mb-4">
+               <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <Code className="h-6 w-6 text-primary" /> Quant Lab
+              </h2>
+              <p className="text-muted-foreground">Backtesting engine using Backtrader/Python (Simulated)</p>
+            </div>
+            <QuantPanel />
           </TabsContent>
 
           {/* FUNDAMENTAL TAB */}
