@@ -1,36 +1,32 @@
-import { useState, useEffect } from "react";
-import { Coin, getTopCoins } from "@/lib/crypto-api";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { getWatchlist, saveWatchlist } from "@/lib/app-api";
+import { queryClient } from "@/lib/queryClient";
 
-const WATCHLIST_KEY = "crypto-watchlist";
+const watchlistQueryKey = ["watchlist"];
 
 export function useWatchlist() {
-  const [watchlist, setWatchlist] = useState<string[]>(() => {
-    try {
-      const item = window.localStorage.getItem(WATCHLIST_KEY);
-      return item ? JSON.parse(item) : [];
-    } catch (error) {
-      console.error(error);
-      return [];
-    }
+  const { data: watchlist = [] } = useQuery({
+    queryKey: watchlistQueryKey,
+    queryFn: getWatchlist,
+    staleTime: 30_000,
   });
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist));
-    } catch (error) {
-      console.error(error);
-    }
-  }, [watchlist]);
+  const saveMutation = useMutation({
+    mutationFn: (nextWatchlist: string[]) => saveWatchlist(nextWatchlist),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(watchlistQueryKey, saved);
+    },
+  });
 
-  const toggleWatchlist = (coinId: string) => {
-    setWatchlist(prev => 
-      prev.includes(coinId) 
-        ? prev.filter(id => id !== coinId)
-        : [...prev, coinId]
-    );
+  const toggleWatchlist = async (coinId: string) => {
+    const nextWatchlist = watchlist.includes(coinId)
+      ? watchlist.filter((id) => id !== coinId)
+      : [...watchlist, coinId];
+
+    await saveMutation.mutateAsync(nextWatchlist);
   };
 
   const isInWatchlist = (coinId: string) => watchlist.includes(coinId);
 
-  return { watchlist, toggleWatchlist, isInWatchlist };
+  return { watchlist, toggleWatchlist, isInWatchlist, isSaving: saveMutation.isPending };
 }

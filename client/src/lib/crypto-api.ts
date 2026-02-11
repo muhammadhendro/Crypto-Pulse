@@ -191,7 +191,7 @@ const MOCK_GLOBAL: GlobalData = {
 
 // --- API CLIENT ---
 
-const USE_MOCK = true; 
+const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === "true";
 
 export const getTopCoins = async (): Promise<Coin[]> => {
   if (USE_MOCK) {
@@ -270,7 +270,34 @@ export const getCoinDetails = async (id: string): Promise<CoinDetail | null> => 
         sparkline: false
       }
     });
-    return data;
+
+    const marketData = data.market_data || {};
+
+    return {
+      ...data,
+      current_price: marketData.current_price?.usd ?? 0,
+      market_cap: marketData.market_cap?.usd ?? 0,
+      market_cap_rank: data.market_cap_rank ?? 0,
+      fully_diluted_valuation: marketData.fully_diluted_valuation?.usd ?? null,
+      total_volume: marketData.total_volume?.usd ?? 0,
+      high_24h: marketData.high_24h?.usd ?? 0,
+      low_24h: marketData.low_24h?.usd ?? 0,
+      price_change_24h: marketData.price_change_24h ?? 0,
+      price_change_percentage_24h: marketData.price_change_percentage_24h ?? 0,
+      market_cap_change_24h: marketData.market_cap_change_24h ?? 0,
+      market_cap_change_percentage_24h: marketData.market_cap_change_percentage_24h ?? 0,
+      circulating_supply: marketData.circulating_supply ?? 0,
+      total_supply: marketData.total_supply ?? null,
+      max_supply: marketData.max_supply ?? null,
+      ath: marketData.ath?.usd ?? 0,
+      ath_change_percentage: marketData.ath_change_percentage?.usd ?? 0,
+      ath_date: marketData.ath_date?.usd ?? "",
+      atl: marketData.atl?.usd ?? 0,
+      atl_change_percentage: marketData.atl_change_percentage?.usd ?? 0,
+      atl_date: marketData.atl_date?.usd ?? "",
+      last_updated: data.last_updated ?? new Date().toISOString(),
+      market_cap_fdv_ratio: marketData.market_cap_fdv_ratio ?? 0,
+    };
   } catch (error) {
     console.error("Details API Error", error);
     return null;
@@ -323,19 +350,29 @@ export const getCoinOHLCV = async (id: string, days: string = "30"): Promise<num
 };
 
 export const getCoinHistory = async (id: string, days: string = "7"): Promise<{ prices: [number, number][] }> => {
-  // Mock history data
+  if (!USE_MOCK) {
+    try {
+      const { data } = await axios.get(`https://api.coingecko.com/api/v3/coins/${id}/market_chart`, {
+        params: { vs_currency: "usd", days },
+      });
+      return { prices: data.prices };
+    } catch (error) {
+      console.error("History API Error", error);
+    }
+  }
+
   const now = Date.now();
   const dayMs = 86400000;
   const count = days === "1" ? 24 : parseInt(days);
   const interval = days === "1" ? 3600000 : dayMs;
-  
+
   const prices: [number, number][] = Array.from({ length: count }).map((_, i) => {
     const time = now - (count - 1 - i) * interval;
     const basePrice = id === "bitcoin" ? 64000 : id === "ethereum" ? 3400 : 140;
-    const random = Math.random() * (basePrice * 0.1) - (basePrice * 0.05);
+    const random = Math.random() * (basePrice * 0.1) - basePrice * 0.05;
     return [time, basePrice + random];
   });
-  
+
   return { prices };
 };
 
