@@ -41,7 +41,7 @@ If you prefer explicit SQL migrations, keep equivalent schema in your Supabase m
 
 1. Push this repo to GitHub/GitLab.
 2. Import project in Vercel.
-3. Build command: `npm run build`
+3. Build command: `vite build` (configured in `vercel.json`)
 4. Output directory: `dist/public`
 5. Add env vars above.
 6. Deploy.
@@ -50,3 +50,9 @@ If you prefer explicit SQL migrations, keep equivalent schema in your Supabase m
 
 - Current auth is lightweight username/password and intended as minimal app auth.
 - For stricter production security, replace with Supabase Auth and hashed passwords.
+
+
+### Why `vite build` on Vercel?
+
+Vercel already builds API functions from `api/index.ts` using `@vercel/node`.
+The static site build only needs client assets, so using `vite build` avoids running the custom server bundle step (`script/build.ts`) in Vercel CI.
