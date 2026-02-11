@@ -9,12 +9,15 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useWatchlist } from "@/lib/use-watchlist";
+import { useAppSettings } from "@/lib/use-app-settings";
 
 export default function Dashboard() {
+  const { settings } = useAppSettings();
+
   const { data: coins, isLoading: coinsLoading, error: coinsError } = useQuery({
-    queryKey: ["topCoins"],
+    queryKey: ["topCoins", settings?.refreshInterval],
     queryFn: getTopCoins,
-    refetchInterval: 30000, // Refresh every 30s
+    refetchInterval: settings ? parseInt(settings.refreshInterval, 10) * 1000 : 30000,
   });
 
   const { data: global, isLoading: globalLoading } = useQuery({
