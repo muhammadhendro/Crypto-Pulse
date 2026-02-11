@@ -1,30 +1,47 @@
-import { useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
+import { useAppSettings } from "@/lib/use-app-settings";
+import { useState, useEffect } from "react";
+import type { AppSettings } from "@/lib/app-api";
 
 export default function Settings() {
-  const [refreshInterval, setRefreshInterval] = useState("30");
-  const [currency, setCurrency] = useState("usd");
-  const [notifications, setNotifications] = useState(true);
+  const { settings, isLoading, isSaving, saveSettings } = useAppSettings();
+  const [localSettings, setLocalSettings] = useState<AppSettings | null>(null);
 
-  const handleSave = () => {
-    toast({
-      title: "Settings Saved",
-      description: "Your preferences have been updated successfully.",
-    });
+  useEffect(() => {
+    if (settings) {
+      setLocalSettings(settings);
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
+    if (!localSettings) return;
+
+    try {
+      await saveSettings(localSettings);
+      toast({
+        title: "Settings Saved",
+        description: "Your preferences have been updated successfully.",
+      });
+    } catch (_error) {
+      toast({
+        title: "Save failed",
+        description: "Unable to save settings right now.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <div className="min-h-screen bg-background font-sans">
       <Navbar />
-      
+
       <main className="container max-w-2xl py-6 space-y-8">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
@@ -39,7 +56,13 @@ export default function Settings() {
           <CardContent className="space-y-6">
             <div className="grid gap-2">
               <Label htmlFor="currency">Display Currency</Label>
-              <Select value={currency} onValueChange={setCurrency}>
+              <Select
+                value={localSettings?.currency}
+                onValueChange={(currency: AppSettings["currency"]) =>
+                  localSettings && setLocalSettings({ ...localSettings, currency })
+                }
+                disabled={isLoading || !localSettings}
+              >
                 <SelectTrigger id="currency">
                   <SelectValue placeholder="Select currency" />
                 </SelectTrigger>
@@ -54,7 +77,13 @@ export default function Settings() {
 
             <div className="grid gap-2">
               <Label htmlFor="interval">Auto-Refresh Interval (Seconds)</Label>
-              <Select value={refreshInterval} onValueChange={setRefreshInterval}>
+              <Select
+                value={localSettings?.refreshInterval}
+                onValueChange={(refreshInterval: AppSettings["refreshInterval"]) =>
+                  localSettings && setLocalSettings({ ...localSettings, refreshInterval })
+                }
+                disabled={isLoading || !localSettings}
+              >
                 <SelectTrigger id="interval">
                   <SelectValue placeholder="Select interval" />
                 </SelectTrigger>
@@ -76,34 +105,36 @@ export default function Settings() {
                   Enable advanced charts (RSI, MACD, BB) in Detail view.
                 </p>
               </div>
-              <Switch id="indicators" defaultChecked />
+              <Switch
+                id="indicators"
+                checked={localSettings?.indicators ?? true}
+                onCheckedChange={(indicators) =>
+                  localSettings && setLocalSettings({ ...localSettings, indicators })
+                }
+                disabled={isLoading || !localSettings}
+              />
             </div>
 
-             <div className="flex items-center justify-between space-x-2">
+            <div className="flex items-center justify-between space-x-2">
               <div className="space-y-1">
                 <Label htmlFor="notifications">Browser Notifications</Label>
                 <p className="text-sm text-muted-foreground">
                   Get alerted when watchlist items hit price targets.
                 </p>
               </div>
-              <Switch 
-                id="notifications" 
-                checked={notifications} 
-                onCheckedChange={setNotifications}
+              <Switch
+                id="notifications"
+                checked={localSettings?.notifications ?? true}
+                onCheckedChange={(notifications) =>
+                  localSettings && setLocalSettings({ ...localSettings, notifications })
+                }
+                disabled={isLoading || !localSettings}
               />
             </div>
-            
-             <div className="flex items-center justify-between space-x-2">
-              <div className="space-y-1">
-                <Label htmlFor="darkmode">Dark Mode</Label>
-                <p className="text-sm text-muted-foreground">
-                  Force dark mode interface.
-                </p>
-              </div>
-              <Switch id="darkmode" checked={true} disabled />
-            </div>
 
-            <Button onClick={handleSave} className="w-full">Save Changes</Button>
+            <Button onClick={handleSave} className="w-full" disabled={isLoading || isSaving || !localSettings}>
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
           </CardContent>
         </Card>
       </main>

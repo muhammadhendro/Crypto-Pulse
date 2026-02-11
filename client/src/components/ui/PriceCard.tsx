@@ -11,7 +11,7 @@ interface PriceCardProps {
 }
 
 export function PriceCard({ coin }: PriceCardProps) {
-  const { isInWatchlist, toggleWatchlist } = useWatchlist();
+  const { isInWatchlist, toggleWatchlist, isSaving } = useWatchlist();
   const isPositive = coin.price_change_percentage_24h >= 0;
   const isStarred = isInWatchlist(coin.id);
 
@@ -21,10 +21,10 @@ export function PriceCard({ coin }: PriceCardProps) {
     price
   })) || [];
 
-  const handleStarClick = (e: React.MouseEvent) => {
+  const handleStarClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation if inside a Link
     e.stopPropagation();
-    toggleWatchlist(coin.id);
+    await toggleWatchlist(coin.id);
   };
 
   return (
@@ -37,6 +37,7 @@ export function PriceCard({ coin }: PriceCardProps) {
           isStarred ? "text-yellow-400" : "text-muted-foreground/20 group-hover:text-muted-foreground"
         )}
         onClick={handleStarClick}
+        disabled={isSaving}
       >
         <Star className={cn("h-5 w-5", isStarred && "fill-current")} />
       </Button>

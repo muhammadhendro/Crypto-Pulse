@@ -163,6 +163,11 @@ export function TechnicalPanel({ ohlcv }: TechnicalPanelProps) {
                   <TableCell className="text-right font-mono">{indicators.sma.period200.toFixed(2)}</TableCell>
                   <TableCell className="text-right text-muted-foreground">-</TableCell>
                 </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">VWAP</TableCell>
+                  <TableCell className="text-right font-mono">{indicators.vwap.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">Value</TableCell>
+                </TableRow>
                  <TableRow>
                   <TableCell className="font-medium">Bollinger Upper</TableCell>
                   <TableCell className="text-right font-mono">{indicators.bollingerBands.upper.toFixed(2)}</TableCell>
