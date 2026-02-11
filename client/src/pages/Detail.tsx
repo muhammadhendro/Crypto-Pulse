@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRoute } from "wouter";
 import Navbar from "@/components/layout/Navbar";
 import { getCoinHistory, getCoinDetails, getCoinOHLCV } from "@/lib/crypto-api"; 
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { ArrowUp, ArrowDown, BookOpen, BarChart2, LineChart, Database, Activity, Layers, Code } from "lucide-react";
+import { ArrowUp, ArrowDown, BookOpen, BarChart2, LineChart, Database, Activity, Layers, Code, Bell, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { TechnicalPanel } from "@/components/analysis/TechnicalPanel";
 import { FundamentalPanel } from "@/components/analysis/FundamentalPanel";
@@ -18,11 +18,21 @@ import { SentimentPanel } from "@/components/analysis/SentimentPanel";
 import { MultiExchangePanel } from "@/components/analysis/MultiExchangePanel";
 import { QuantPanel } from "@/components/analysis/QuantPanel";
 import { AdvancedRealTimeChart } from "react-ts-tradingview-widgets";
+import { getAlerts, createAlert, deleteAlert, evaluateAlerts, type AlertRule } from "@/lib/app-api";
+import { calculateIndicators } from "@/lib/indicators";
+import { queryClient } from "@/lib/queryClient";
+import { toast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Detail() {
   const [match, params] = useRoute("/coin/:id");
   const id = params?.id || "bitcoin";
   const [timeRange, setTimeRange] = useState("7"); 
+  const [alertType, setAlertType] = useState<AlertRule["type"]>("price_above");
+  const [alertThreshold, setAlertThreshold] = useState("");
+  const [chartInterval, setChartInterval] = useState<"1" | "5" | "15" | "60" | "240" | "D">("60");
 
   const { data: coin, isLoading: coinLoading } = useQuery({ 
     queryKey: ["coinDetail", id], 
@@ -39,14 +49,87 @@ export default function Detail() {
     queryFn: () => getCoinOHLCV(id, "30")
   });
 
+  const { data: alerts = [] } = useQuery({
+    queryKey: ["alerts"],
+    queryFn: getAlerts,
+    refetchInterval: 15_000,
+  });
+
+  const createAlertMutation = useMutation({
+    mutationFn: createAlert,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts"] }),
+  });
+
+  const deleteAlertMutation = useMutation({
+    mutationFn: deleteAlert,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts"] }),
+  });
+
   const chartData = history?.prices.map(([time, price]) => ({
     date: time,
     price: price
   })) || [];
 
-  if (coinLoading || !coin) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
+  const isPositive = (coin?.price_change_percentage_24h || 0) >= 0;
 
-  const isPositive = (coin.price_change_percentage_24h || 0) >= 0;
+  const technicalSnapshot = useMemo(() => {
+    if (!ohlcv || ohlcv.length < 200) return null;
+    const prices = ohlcv.map((c) => c[4]);
+    const highs = ohlcv.map((c) => c[2]);
+    const lows = ohlcv.map((c) => c[3]);
+    const closes = ohlcv.map((c) => c[4]);
+    return calculateIndicators(prices, highs, lows, closes);
+  }, [ohlcv]);
+
+  useEffect(() => {
+    if (!coin || !technicalSnapshot) return;
+
+    const evaluate = async () => {
+      const result = await evaluateAlerts({
+        coinId: id,
+        price: coin.current_price,
+        rsi: technicalSnapshot.indicators.rsi,
+        macdHistogram: technicalSnapshot.indicators.macd.histogram || 0,
+      });
+
+      if (result.triggeredIds.length > 0) {
+        toast({
+          title: `Alert Triggered: ${coin.symbol.toUpperCase()}`,
+          description: `${result.triggeredIds.length} alert(s) triggered and archived.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ["alerts"] });
+      }
+    };
+
+    evaluate();
+  }, [alerts, coin, id, technicalSnapshot]);
+
+  const coinAlerts = alerts.filter((a) => a.coinId === id);
+
+  const handleCreateAlert = async () => {
+    if (!coin) return;
+
+    const needsThreshold = !["macd_bullish", "macd_bearish"].includes(alertType);
+    const parsedThreshold = alertThreshold === "" ? null : Number(alertThreshold);
+
+    if (needsThreshold && (parsedThreshold === null || Number.isNaN(parsedThreshold))) {
+      toast({ title: "Validation", description: "Threshold is required for this alert type", variant: "destructive" });
+      return;
+    }
+
+    await createAlertMutation.mutateAsync({
+      coinId: id,
+      coinSymbol: coin.symbol,
+      type: alertType,
+      threshold: needsThreshold ? parsedThreshold : null,
+      enabled: true,
+    });
+
+    setAlertThreshold("");
+    toast({ title: "Alert created", description: "Rule saved successfully." });
+  };
+
+  if (coinLoading || !coin) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
 
   return (
     <div className="min-h-screen bg-background font-sans">
@@ -205,8 +288,27 @@ export default function Detail() {
                   autosize
                   hide_side_toolbar={false}
                   allow_symbol_change={true}
-                  interval="60"
+                  interval={chartInterval}
                 />
+             </div>
+             <div className="mt-3 flex flex-wrap items-center gap-2">
+               {([
+                 { label: "1m", value: "1" },
+                 { label: "5m", value: "5" },
+                 { label: "15m", value: "15" },
+                 { label: "1H", value: "60" },
+                 { label: "4H", value: "240" },
+                 { label: "1D", value: "D" }
+               ] as const).map((frame) => (
+                 <Button
+                   key={frame.value}
+                   variant={chartInterval === frame.value ? "default" : "outline"}
+                   size="sm"
+                   onClick={() => setChartInterval(frame.value)}
+                 >
+                   {frame.label}
+                 </Button>
+               ))}
              </div>
              <div className="mt-2 text-xs text-muted-foreground text-center">
                Chart powered by TradingView. Includes Pine Script Strategy Tester capability (read-only).
@@ -224,6 +326,55 @@ export default function Detail() {
                </div>
             </div>
             {ohlcv ? <TechnicalPanel ohlcv={ohlcv} /> : <Skeleton className="h-96 w-full" />}
+
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Bell className="h-4 w-4" /> Alerts (Price / RSI / MACD)</CardTitle>
+                <CardDescription>Create rule-based alerts for current asset.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <Select value={alertType} onValueChange={(v: AlertRule["type"]) => setAlertType(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="price_above">Price Above</SelectItem>
+                      <SelectItem value="price_below">Price Below</SelectItem>
+                      <SelectItem value="rsi_above">RSI Above</SelectItem>
+                      <SelectItem value="rsi_below">RSI Below</SelectItem>
+                      <SelectItem value="macd_bullish">MACD Bullish</SelectItem>
+                      <SelectItem value="macd_bearish">MACD Bearish</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    placeholder="Threshold"
+                    value={alertThreshold}
+                    onChange={(e) => setAlertThreshold(e.target.value)}
+                    disabled={["macd_bullish", "macd_bearish"].includes(alertType)}
+                  />
+                  <Button onClick={handleCreateAlert} disabled={createAlertMutation.isPending}>Create Alert</Button>
+                </div>
+
+                <div className="space-y-2">
+                  {coinAlerts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No alerts for this coin yet.</p>
+                  ) : (
+                    coinAlerts.map((rule) => (
+                      <div key={rule.id} className="flex items-center justify-between border rounded-md p-2">
+                        <div className="text-sm">
+                          {rule.type.replaceAll("_", " ")}
+                          {rule.threshold !== null ? ` @ ${rule.threshold}` : ""}
+                          {!rule.enabled && <Badge variant="secondary" className="ml-2">Triggered</Badge>}
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => deleteAlertMutation.mutate(rule.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* DERIVATIVES TAB */}

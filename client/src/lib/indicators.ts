@@ -32,6 +32,7 @@ export interface TechnicalIndicators {
     pb: number; // Percent Bandwidth
   };
   atr: number;
+  vwap: number;
   stochastic: {
     k: number;
     d: number;
@@ -66,7 +67,7 @@ export interface TechnicalAnalysisResult {
 
 // --- Calculator ---
 
-export const calculateIndicators = (prices: number[], highs: number[], lows: number[], closes: number[]): TechnicalAnalysisResult => {
+export const calculateIndicators = (prices: number[], highs: number[], lows: number[], closes: number[], volumes: number[] = closes): TechnicalAnalysisResult => {
   // Ensure we have enough data
   if (prices.length < 200) {
     // Return safe defaults if not enough data
@@ -158,6 +159,10 @@ export const calculateIndicators = (prices: number[], highs: number[], lows: num
   if (score > 60) signal = "Bullish";
   if (score < 40) signal = "Bearish";
 
+  const vwapNumerator = closes.reduce((acc, close, idx) => acc + close * (volumes[idx] ?? close), 0);
+  const vwapDenominator = volumes.reduce((acc, volume) => acc + (volume || 0), 0) || 1;
+  const vwap = vwapNumerator / vwapDenominator;
+
   return {
     indicators: {
       rsi: currentRsi,
@@ -166,6 +171,7 @@ export const calculateIndicators = (prices: number[], highs: number[], lows: num
       macd: currentMacd,
       bollingerBands: { ...currentBB, pb: (currentPrice - currentBB.lower) / (currentBB.upper - currentBB.lower) },
       atr: currentAtr,
+      vwap,
       stochastic: currentStoch,
       pivotPoints: { ...pivotPoints, classic: pivotPoints } as any
     },
@@ -189,6 +195,7 @@ function getSafeDefaults(): TechnicalAnalysisResult {
       macd: { MACD: 0, signal: 0, histogram: 0 },
       bollingerBands: { upper: 0, middle: 0, lower: 0, pb: 0 },
       atr: 0,
+      vwap: 0,
       stochastic: { k: 50, d: 50 },
       pivotPoints: { classic: { pp: 0, r1: 0, r2: 0, r3: 0, s1: 0, s2: 0, s3: 0 } }
     },
